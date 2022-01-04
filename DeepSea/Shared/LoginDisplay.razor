@@ -1,0 +1,27 @@
+﻿@using Microsoft.AspNetCore.Authentication.Cookies
+@using Microsoft.AspNetCore.Identity
+@using System.Security.Claims
+@inject SignInManager<IdentityUserModel> SignInManager
+@inject NavigationManager NavigationManager
+@inject IHostEnvironmentAuthenticationStateProvider HostAuthentication
+@inject IJSRuntime JSRuntime
+
+<AuthorizeView>
+	<Authorized>
+		<a href="/personalInfo">你好, @context.User.Identity?.Name!</a>
+		<button class="nav-link btn btn-link" @onclick=logout>登出</button>
+	</Authorized>
+	<NotAuthorized>
+		<a href="/auth/register">註冊</a>
+		<a href="/auth/login">登入</a>
+	</NotAuthorized>
+</AuthorizeView>
+@code {
+	private async void logout()
+	{
+		var principal = SignInManager.Context.User = new ClaimsPrincipal(new ClaimsIdentity());
+		HostAuthentication.SetAuthenticationState(Task.FromResult(new AuthenticationState(principal)));
+		await JSRuntime.InvokeVoidAsync("blazorExtensions.DeleteCookie", "Auth");
+		NavigationManager.NavigateTo("/auth/login");
+	}
+}

@@ -1,0 +1,150 @@
+﻿@page "/auth/register"
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject SignInManager<IdentityUserModel> SignInManager
+@inject NavigationManager NavigationManager
+@inject IHostEnvironmentAuthenticationStateProvider HostAuthentication
+@inject ApplicationDbContext dbContext
+@attribute [AllowAnonymous]
+<h3 style="text-align:center">註冊</h3>
+<EditForm Model=registerModel OnValidSubmit=register style="text-align:center">
+	<DataAnnotationsValidator />
+	<ValidationSummary />
+	<div>
+		<label style="width:60%">
+			體系:<br />
+			<InputSelect style="width:60%;height:30px;" @bind-Value=registerModel.AllienceId @onclick=onAllianceChange>
+				@foreach (var allience in allianceList)
+				{
+					<option value="@allience.Id">@allience.Name</option>
+				}
+			</InputSelect>
+		</label>
+	</div>
+	<div>
+		<label style="width:60%">
+			家族:<br />
+			<InputSelect style="width:60%;height:30px;" @bind-Value=registerModel.HouseId>
+				@if (houseList.Count > 0)
+				{
+					@foreach (var house in houseList)
+					{
+						<option value="@house.Id">@house.Name</option>
+					}
+				}
+				else
+				{
+					<option value="">請選擇體系</option>
+				}
+			</InputSelect>
+		</label>
+	</div>
+	<div>
+		<label style="width:60%">
+			Discord名稱(左下角 不包含#號與後面的數字):<br />
+			<InputText style="width:60%" @bind-Value=registerModel.DiscordName></InputText>
+		</label>
+	</div>
+	<div style="margin-top:10px">
+		<label style="width:60%">
+			角色名稱:<br />
+			<InputText style="width:60%" @bind-Value=registerModel.GameName></InputText>
+		</label>
+	</div>
+
+	<div style="margin-top:10px">
+		<label style="width:60%">
+			電子信箱:<br />
+			<InputText style="width:60%" @bind-Value=registerModel.Email></InputText>
+		</label>
+	</div>
+
+	<div style="margin-top:10px">
+		<label style="width:60%">
+			密碼:<br />
+			<InputText style="width:60%" @bind-Value=registerModel.Password></InputText>
+		</label>
+	</div>
+
+	<div style="margin-top:10px">
+		<label style="width:60%">
+			確認密碼:<br />
+			<InputText style="width:60%" @bind-Value=registerModel.ConfirmPassword></InputText>
+		</label>
+	</div>
+	@if (!string.IsNullOrEmpty(error))
+	{
+		<div class="alert-danger">
+			<p>@error</p>
+		</div>
+	}
+	<button type="submit" class="btn btn-success">註冊</button>
+</EditForm>
+
+
+@code {
+	private RegisterModel registerModel = new RegisterModel();
+	private string error = "";
+
+	private List<Alliance> allianceList;
+	private List<House> houseList = new List<House>();
+
+	protected override Task OnInitializedAsync()
+	{
+		allianceList = dbContext.Alliance.Select(x => x).ToList();
+		onAllianceChange();
+		return base.OnInitializedAsync();
+	}
+
+	private Task onAllianceChange()
+	{
+		Console.WriteLine(registerModel.AllienceId);
+		var currentAlliance = houseList.FirstOrDefault();
+		if(currentAlliance != null && currentAlliance.AllianceId == registerModel.AllienceId)
+		{
+			return Task.CompletedTask;
+		}
+		houseList = dbContext.House.Where(x => x.AllianceId == registerModel.AllienceId).ToList();
+		return Task.CompletedTask;
+	}
+
+	private async void register()
+	{
+		var userExist = await SignInManager.UserManager.FindByEmailAsync(registerModel.Email);
+		if (userExist != null)
+		{
+			error = "使用者已存在";
+			StateHasChanged();
+			return;
+		}
+		var houseMember = dbContext.HouseMember.Where(x => x.Detail.AllianceId == registerModel.AllienceId).SingleOrDefault(m =>  m.GameName == registerModel.GameName);
+		if(houseMember == null)
+		{
+			error = "未存在於成員名單中";
+			StateHasChanged();
+			return;
+		}
+		var user = new IdentityUserModel();
+		user.Email = registerModel.Email;
+		user.UserName = registerModel.GameName;
+		user.DiscordName = registerModel.DiscordName;
+		user.Domination = 700;
+		user.Level = 0;
+		user.JoinTime = DateTime.Now;
+		user.HouseMemberId = houseMember.Id;
+		var result = await SignInManager.UserManager.CreateAsync(user, registerModel.Password);
+		if (result.Succeeded)
+		{
+			houseMember.Detail.HouseId = registerModel.HouseId;
+			dbContext.SaveChanges();
+			await SignInManager.UserManager.AddToRoleAsync(user, "User");
+			toastService.ShowSuccess($"成功註冊 請重新登入", "完成");
+            NavigationManager.NavigateTo("auth/login", true);
+		}
+		else
+		{
+			error = result.Errors.FirstOrDefault().Description;
+			StateHasChanged();
+			return;
+		}
+	}
+}

@@ -1,0 +1,113 @@
+﻿@page "/admin/TWAsign"
+<h3>領土戰隊伍分配</h3>
+
+@foreach (var team in teamList)
+{
+	<div>
+		<div style="display:block;margin:10px;">
+			隊伍 <input @bind-value="team.Name" style="width:20%">
+			目標 <input @bind-value="team.Description" style="width:68%">
+			<button class="btn btn-sm btn-danger" style="margin-left: 10px">重置</button>
+		</div>
+		<table class="table">
+			<thead>
+				<tr>
+					<th style="width:25%;">名稱</th>
+					<th style="width:55%;">出戰兵種</th>
+					<th style="width:20%;">
+						出戰 / 個人統御
+						<span style="float:right">出席率</span>
+					</th>
+				</tr>
+			</thead>
+			<tbody>
+				@foreach (var teamUser in team.TeamUsers)
+				{
+					<tr>
+						<td scope="row">
+							<select style="width:90%">
+								<option value="">--未選取--</option>
+								@foreach (var user in userList)
+								{
+									<option value="@user.Id" selected="@(user.Id == teamUser.IdentityUserId ? true : false)">@user.UserName</option>
+								}
+							</select>
+						</td>
+						@if (teamUser is null)
+						{
+							<td>
+								<div style="width:100%;justify-content: space-between; display: inline-flex;padding-left:10px;padding-right:10px;">
+									<select style="width:90%"></select>
+									<select style="width:90%"></select>
+									<select style="width:90%"></select>
+								</div>
+							</td>
+							<td>
+								<span id="battle-dominate-team-0-member-4">0</span>
+								/
+								<span id="dominate-team-0-member-4">0</span>
+								<span id="warning-dominate-team-0-member-4">💥</span>
+								<span style="float:right">
+									<span id="attendance-rate-team-0-member-4">0</span>
+								</span>
+							</td>
+						}
+						else
+						{
+							<td>
+								<div style="width:100%;justify-content: space-between; display: inline-flex;padding-left:10px;padding-right:10px;">
+									@foreach (var unit in teamUser.Detail)
+									{
+										<select style="width:90%">
+											<option value="@unit.Unit.Id">@unit.Unit.Name</option>
+											@foreach (var ownUnit in teamUser.IdentityUser.OwnUnits)
+											{
+												<option value="@ownUnit.UnitId">@ownUnit.Unit.Name</option>
+											}
+										</select>
+									}
+								</div>
+							</td>
+							<td>
+								<span id="battle-dominate-team-0-member-4">700</span>
+								/
+								<span id="dominate-team-0-member-4">774</span>
+								<span id="warning-dominate-team-0-member-4">💥</span>
+								<span style="float:right">
+									<span id="attendance-rate-team-0-member-4">75</span>
+								</span>
+							</td>
+						}
+					</tr>
+				}
+			</tbody>
+		</table>
+	</div>
+	<hr />
+}
+@code {
+	//💥
+	private List<Team> teamList = new List<Team>();
+	private IdentityUserModel user;
+	private List<IdentityUserModel> userList = new List<IdentityUserModel>();
+	private List<IdentityUserModel> unTeamedUserList = new List<IdentityUserModel>();
+
+	protected override async Task OnInitializedAsync()
+	{
+		AuthenticationState authState = await AuthenticationStateProvider!.GetAuthenticationStateAsync();
+		var userName = authState.User.Identity!.Name;
+		user = dbContext.User.Single(u => u.UserName == userName);
+		var allienceId = user.HouseMember.Detail.AllianceId;
+		Console.WriteLine(allienceId);
+		teamList = dbContext.Team.Where(x => x.AllianceId == allienceId).ToList();
+		teamList = Enumerable.Range(0, 20).Select(i => teamList[i] ?? new Team()).ToList();
+		dbContext.ChangeTracker.Tracked += (sender, e) =>
+		{
+			if (e.FromQuery && e.Entry.Entity is Team)
+			{
+				var entity = (Team)e.Entry.Entity;
+			}
+		};
+
+	}
+}

@@ -1,0 +1,296 @@
+﻿@page "/personalInfo"
+
+@inject SignInManager<IdentityUserModel> SignInManager
+@inject ApplicationDbContext dbContext
+@attribute [Authorize]
+
+<h3>個人資訊</h3>
+
+<EditForm Model=personalData OnValidSubmit=updateUserData>
+	<div class="border border-primary rounded" style="padding: 10px">
+		<div>體系: @allianceName</div>
+		<div>家族: @houseName</div>
+		<div>加入時間: @user.JoinTime.ToShortDateString()</div>
+		<div>出席率: <span style="color:@attendColor;">@attendRate</span> (出席 : @attendTimes.ToString() 次/共計 : @totalTimes.ToString() 次) </div>
+		<div> 未出席日期 : </div>
+		<div>
+			角色名稱:
+			@if (@personalData.IsEditing)
+			{
+				<InputText @bind-Value=personalData.GameName />
+			}
+			else
+			{
+				@personalData.GameName
+			}
+		</div>
+		<div>
+			等級:
+			@if (@personalData.IsEditing)
+			{
+				<InputNumber @bind-Value=personalData.Level />
+			}
+			else
+			{
+				@personalData.Level.ToString()
+			}
+		</div>
+		<div>
+			統御:
+			@if (@personalData.IsEditing)
+			{
+				<InputNumber @bind-Value=personalData.Domination />
+			}
+			else
+			{
+				@personalData.Domination.ToString()
+			}
+		</div>
+		<div>
+			Discord名稱:
+			@if (@personalData.IsEditing)
+			{
+				<InputText @bind-Value=personalData.DiscordName />
+			}
+			else
+			{
+				@personalData.DiscordName
+			}
+		</div>
+		<div class="flex">
+			<div type="button" hidden=@(personalData.IsEditing) class="btn btn-sm btn-primary" @onclick="editProfile">修改</div>
+			<button type="submit" hidden=@(personalData.IsEditing ? false : true) class="btn btn-sm btn-success">送出</button>
+			<div type="button" hidden=@(personalData.IsEditing ? false : true) class="btn btn-sm btn-danger" @onclick="cancelEditProfile">取消</div>
+		</div>
+	</div>
+</EditForm>
+
+<hr />
+
+<EditForm Model=addUnitModel OnValidSubmit=addUnit style="display:flex;justify-content:space-between">
+	<DataAnnotationsValidator />
+	<ValidationSummary />
+	<label>
+		兵團:
+		<InputSelect style="width:100%;height:30px;" @bind-Value=addUnitModel.UnitId>
+			@foreach (var unit in unitList)
+			{
+				<option value="@unit.Id">@unit.Rank.ToString()★ @unit.Name</option>
+			}
+		</InputSelect>
+	</label>
+	<label>
+		當前等級:
+		<InputNumber style="width:100%;height:30px;" @bind-Value=addUnitModel.CurrentLevel />
+	</label>
+	<label>
+		減統御:
+		<InputCheckbox style="width:100%;height:30px;" @bind-Value=addUnitModel.HasDecrease/>
+	</label>
+	<label>
+		備註:
+		<InputText style="width:100%;height:30px;" @bind-Value=addUnitModel.Comment />
+	</label>
+	<button type="submit">新增</button>
+</EditForm>
+<Table TableItem="UserOwnUnits" Items="ownUnitList" PageSize="10" ColumnReorder="true">
+	<Column TableItem="UserOwnUnits" Title="星級" Field="@(x => x.Unit.Rank)" Sortable="true" Filterable="true" Width="10%">
+		<Template>
+			<div style="padding:10px">@context.Unit.Rank.ToString()★</div>
+		</Template>
+	</Column>
+	<Column TableItem="UserOwnUnits" Title="名稱" Field="@(x => x.Unit.Name)" Sortable="true" Filterable="true" Width="20%">
+		<Template>
+			<div style="padding:10px">@context.Unit.Name</div>
+		</Template>
+	</Column>
+	<Column TableItem="UserOwnUnits" Title="當前等級" Field="@(x => x.CurrentLevel)" Sortable="true" Filterable="true" Width="10%">
+		<Template>
+			@if (context.IsEditing)
+			{
+				<input type="number" class="form-control" placeholder="當前等級" @bind="@context.CurrentLevel" />
+			}
+			else
+			{
+				<div style="padding:10px">@context.CurrentLevel.ToString()</div>
+			}
+		</Template>
+	</Column>
+	<Column TableItem="UserOwnUnits" Title="備註" Field="@(x => x.Comment)" Sortable="true" Filterable="true" Width="20%">
+		<Template>
+			@if (context.IsEditing)
+			{
+				<input type="text" class="form-control" placeholder="備註" @bind="@context.Comment" />
+			}
+			else
+			{
+				<div style="padding:10px">@context.Comment</div>
+			}
+		</Template>
+	</Column>
+	<Column TableItem="UserOwnUnits" Title="減統御" Field="@(x => x.HasDecrease)" Sortable="true" Filterable="true" Width="10%">
+		<Template>
+			@if (context.IsEditing)
+			{
+				<input class="form-control" type="checkbox" @bind=context.HasDecrease/>
+			}
+			else
+			{
+				<div style="padding:10px">@(context.HasDecrease ? "有" : "無")</div>
+			}
+		</Template>
+	</Column>
+	<Column TableItem="UserOwnUnits" Title="操作" Width="10%">
+		<Template>
+			@if (context.IsEditing)
+			{
+				<button type="button" class="btn btn-link" @onclick="() => UpdateUnit(context)">
+					<i class="oi oi-cloud-upload" />
+				</button>
+				<button type="button" class="btn btn-link" @onclick="() => EnableEditing(false, context)">
+					<i class="oi oi-x" />
+				</button>
+			}
+			else
+			{
+				<button type="button" class="btn btn-link" @onclick="() => EnableEditing(true, context)">
+					<i class="oi oi-pencil" />
+				</button>
+				<button type="button" class="btn btn-link" @onclick="() => checkDeleteUnit(context.Confirm)">
+					<i class="oi oi-delete" />
+				</button>
+				<Confirm @ref="context.Confirm" ConfirmationChanged="(flag) => ConfirmDelete_Click(flag, context)"
+					 ConfirmationMessage=@($"確定要刪除 \"{@context.Unit.Name}\" 嗎?")>
+				</Confirm>
+			}
+		</Template>
+	</Column>
+	<Pager ShowPageNumber="true" ShowTotalCount="true" />
+</Table>
+@code {
+	private IdentityUserModel user;
+	private string houseName = "";
+	private string allianceName = "";
+	private PersonalData personalData = new PersonalData();
+	private List<UserOwnUnits> ownUnitList = new List<UserOwnUnits>();
+	private List<Unit> unitList = new List<Unit>();
+	private AddUnitModel addUnitModel = new AddUnitModel();
+	private int attendTimes = 0;
+	private int totalTimes = 0;
+	private string attendRate = "0%";
+	private string attendColor = "grey";
+
+	protected override async Task OnInitializedAsync()
+	{
+		unitList = dbContext.Unit.Where(unit => unit.Rank > 3).ToList();
+		AuthenticationState authState = await AuthenticationStateProvider!.GetAuthenticationStateAsync();
+		var userName = authState.User.Identity!.Name;
+		user = dbContext.User.Single(u => u.UserName == userName);
+		attendTimes = user.HouseMember.AttendenceRecordDetails.Count;
+		personalData.DiscordName = user.DiscordName;
+		personalData.GameName = user.UserName;
+		personalData.Level = user.Level;
+		personalData.Domination = user.Domination;
+		houseName = user.HouseMember.Detail.House.Name;
+		allianceName = user.HouseMember.Detail.Alliance.Name;
+
+		totalTimes = user.HouseMember.Detail.Alliance.AttendenceRecords
+			.Where(x => string.Compare(x.RecordTime, user.HouseMember.CreateTime.ToShortDateString()) > -1)
+			.ToList()
+			.Count;
+
+		var divTotal = totalTimes == 0 ? 1 : totalTimes;
+		var attendRateCalc = (float)attendTimes / (float)divTotal;
+
+		switch(attendRateCalc){
+			case > 80:
+				attendColor = "lightgreen";
+				break;
+			case > 60:
+				attendColor = "yellow";
+				break;
+			case > 40:
+				attendColor = "orange";
+				break;
+			case > 20:
+				attendColor = "red";
+				break;
+		}
+
+		attendRate = attendRateCalc.ToString("P");
+
+		ownUnitList = user.OwnUnits;
+	}
+
+	protected void editProfile()
+	{
+		personalData.IsEditing = true;
+	}
+
+	protected void cancelEditProfile()
+	{
+		personalData.IsEditing = false;
+	}
+
+	protected async void updateUserData()
+	{
+		user.DiscordName = personalData.DiscordName;
+		user.UserName = personalData.GameName;
+		user.Level = personalData.Level;
+		user.Domination = personalData.Domination;
+		await SignInManager.UserManager.UpdateAsync(user);
+		personalData.IsEditing = false;
+		toastService.ShowInfo($"已更新資料", "成功");
+	}
+
+	private void EnableEditing(bool flag, UserOwnUnits unit)
+	{
+		unit.IsEditing = flag;
+	}
+
+	private void EnableEditing(bool flag)
+	{
+		personalData.IsEditing = flag;
+	}
+
+	private void checkDeleteUnit(Confirm confirm)
+	{
+		confirm.Show();
+	}
+
+	protected void addUnit()
+	{
+		var newUnit = new UserOwnUnits()
+		{
+			UnitId = addUnitModel.UnitId,
+			HasDecrease = addUnitModel.HasDecrease,
+			CurrentLevel = addUnitModel.CurrentLevel,
+			Comment = addUnitModel.Comment,
+			IdentityUserId = user.Id
+		};
+		dbContext.MemberOwnUnits.Add(newUnit);
+		dbContext.SaveChanges();
+		ownUnitList.Add(newUnit);
+		toastService.ShowSuccess($"已新增", "成功");
+	}
+
+	private void UpdateUnit(UserOwnUnits unit)
+	{
+		dbContext.MemberOwnUnits.Update(unit);
+		dbContext.SaveChanges();
+		toastService.ShowInfo($"已更新 {unit.Unit.Name}", "成功");
+
+		EnableEditing(false, unit);
+	}
+
+	protected void ConfirmDelete_Click(bool deleteConfirmed, UserOwnUnits unit)
+	{
+		if (deleteConfirmed)
+		{
+			dbContext.MemberOwnUnits.Remove(unit);
+			ownUnitList.Remove(unit);
+			dbContext.SaveChanges();
+			toastService.ShowWarning($"已刪除 {unit.Unit.Name}", "成功");
+		}
+	}
+}

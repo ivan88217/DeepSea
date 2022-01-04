@@ -1,0 +1,237 @@
+﻿@page "/data/units"
+<h3>兵團管理</h3>
+<EditForm Model=addUnitModel OnValidSubmit=addUnit style="display:flex;justify-content:space-between">
+	<DataAnnotationsValidator />
+	<ValidationSummary />
+	<label>
+		星級:
+		<InputNumber style="width:100%;height:30px;" @bind-Value=addUnitModel.Rank />
+	</label>
+	<label>
+		名稱:
+		<InputText style="width:100%;height:30px;" @bind-Value=addUnitModel.Name />
+	</label>
+	<label>
+		類別:
+		<InputSelect style="width:100%;height:30px;" @bind-Value=addUnitModel.UnitType>
+			@foreach (var type in Enum.GetValues(typeof(UnitType)))
+			{
+				<option>@type</option>
+			}
+		</InputSelect>
+	</label>
+	<label>
+		統御:
+		<InputNumber style="width:100%;height:30px;" @bind-Value=addUnitModel.Dominate />
+	</label>
+	<label>
+		最高等級:
+		<InputNumber style="width:100%;height:30px;" @bind-Value=addUnitModel.MaxLevel />
+	</label>
+	<button type="submit">新增</button>
+</EditForm>
+<Table TableItem="Unit" Items="unitList" PageSize="15" @ref=Table ColumnReorder="true">
+	<Column TableItem="Unit" Title="星級" Field="@(x => x.Rank)" Sortable="true" Filterable="true" Width="10%">
+		<Template>
+			@if (context.IsEditing)
+			{
+				<input type="number" class="form-control" placeholder="星級" @bind="@context.Rank" />
+			}
+			else
+			{
+				<div style="padding:10px">@context.Rank.ToString()★</div>
+			}
+		</Template>
+	</Column>
+	<Column TableItem="Unit" Title="名稱" Field="@(x => x.Name)" Sortable="true" Filterable="true" Width="20%">
+		<Template>
+			@if (context.IsEditing)
+			{
+				<input type="text" class="form-control" placeholder="名稱" @bind="@context.Name" />
+			}
+			else
+			{
+				<div style="padding:10px">@context.Name</div>
+			}
+		</Template>
+	</Column>
+	<Column TableItem="Unit" Title="類別" Field="@(x => x.Type)" Sortable="true" Filterable="true" Width="20%" >
+		<Template>
+			<div style="padding:10px">@context.Type</div>
+		</Template>
+	</Column>
+	<Column TableItem="Unit" Title="統御" Field="@(x => x.Dominate)" Sortable="true" Filterable="true" Width="10%">
+		<Template>
+			@if (context.IsEditing)
+			{
+				<input type="number" class="form-control" placeholder="統御" @bind="@context.Dominate" />
+			}
+			else
+			{
+				<div style="padding:10px">@context.Dominate.ToString()</div>
+			}
+		</Template>
+	</Column>
+	<Column TableItem="Unit" Title="最高等級" Field="@(x => x.MaxLevel)" Sortable="true" Filterable="true" Width="10%">
+		<Template>
+			@if (context.IsEditing)
+			{
+				<input type="number" class="form-control" placeholder="最高等級" @bind="@context.MaxLevel" />
+			}
+			else
+			{
+				<div style="padding:10px">@context.MaxLevel.ToString()</div>
+			}
+		</Template>
+	</Column>
+	<Column TableItem="Unit" Title="操作" Width="10%">
+		<Template>
+			@if (context.IsEditing)
+			{
+				<button type="button" class="btn btn-link" @onclick="() => UpdateUnit(context)">
+					<i class="oi oi-cloud-upload" />
+				</button>
+				<button type="button" class="btn btn-link" @onclick="() => EnableEditing(false, context)">
+					<i class="oi oi-x" />
+				</button>
+			}
+			else
+			{
+				<button type="button" class="btn btn-link" @onclick="() => EnableEditing(true, context)">
+					<i class="oi oi-pencil" />
+				</button>
+				<button type="button" class="btn btn-link" @onclick="() => checkDeleteUnit(context.Confirm)">
+					<i class="oi oi-delete" />
+				</button>
+				<Confirm @ref="context.Confirm" ConfirmationChanged="(flag) => ConfirmDelete_Click(flag, context)"
+					 ConfirmationMessage=@($"確定要刪除 \"{@context.Name}\" 嗎?")>
+				</Confirm>
+			}
+		</Template>
+	</Column>
+	<Pager ShowPageNumber="true" ShowTotalCount="true" />
+</Table>
+@*<table class="table">
+	<thead>
+	<tr>
+	<th scope="col">名稱</th>
+	<th scope="col">類別</th>
+	<th scope="col">統御</th>
+	<th scope="col">最高等級</th>
+	<th scope="col">操作</th>
+	</tr>
+	</thead>
+	<tbody>
+	@if (unitList.Count > 0)
+	{
+	foreach ((var unit, var index) in unitList.Select((v, i) => (v, i)))
+	{
+	if (unit.IsEditing)
+	{
+	<tr>
+	<th scope="row"><input type="text" class="form-control" placeholder="兵團名稱" @bind="@unit.Name" /></th>
+	<td>@unit.Type</td>
+	<td><input type="number" class="form-control" placeholder="統御" @bind="@unit.Dominate" /></td>
+	<td><input type="number" class="form-control" placeholder="最高等級" @bind="@unit.MaxLevel" /></td>
+	<td>
+	<button type="button" class="btn btn-link" @onclick="() => UpdateUnit(unit)">
+	<i class="oi oi-cloud-upload" />
+	</button>
+	<button type="button" class="btn btn-link" @onclick="() => EnableEditing(false, unit)">
+	<i class="oi oi-x" />
+	</button>
+	</td>
+	</tr>
+	}
+	else
+	{
+	<tr>
+	<th scope="row">@unit.Name</th>
+	<td>@unit.Type</td>
+	<td>@unit.Dominate</td>
+	<td>@unit.MaxLevel</td>
+	<td>
+	<button type="button" class="btn btn-link" @onclick="() => EnableEditing(true, unit)">
+	<i class="oi oi-pencil" />
+	</button>
+	<button type="button" class="btn btn-link" @onclick="() => checkDeleteUnit(unit.Confirm)">
+	<i class="oi oi-delete" />
+	</button>
+	<Confirm @ref="unit.Confirm" ConfirmationChanged="(flag) => ConfirmDelete_Click(flag, unit)"
+	ConfirmationMessage=@($"確定要刪除 \"{unit.Name}\" 嗎?")>
+	</Confirm>
+	</td>
+	</tr>
+	}
+	}
+	}
+	else
+	{
+	<tr>無資料</tr>
+	}
+	</tbody>
+	</table>*@
+
+@code {
+	private AddUnitModel addUnitModel = new AddUnitModel();
+	private List<Unit> unitList = new List<Unit>();
+	private ITable<Unit> Table;
+
+	protected override Task OnInitializedAsync()
+	{
+		unitList = dbContext.Unit.Select(u => u).ToList();
+		return base.OnInitializedAsync();
+	}
+
+	private void addUnit()
+	{
+		var newUnit = new Unit()
+		{
+			Name = addUnitModel.Name,
+			Rank = addUnitModel.Rank,
+			MaxLevel = addUnitModel.MaxLevel,
+			Dominate = addUnitModel.Dominate,
+			Type = addUnitModel.UnitType
+		};
+		if (dbContext.Unit.Any(u => u.Name == newUnit.Name))
+		{
+			toastService.ShowError($"已存在 {newUnit.Name}", "失敗");
+			return;
+		}
+		dbContext.Unit.Add(newUnit);
+		dbContext.SaveChanges();
+		addUnitModel = new AddUnitModel();
+		unitList.Add(newUnit);
+		toastService.ShowSuccess($"已添加 {newUnit.Name}", "成功");
+	}
+
+	private void EnableEditing(bool flag, Unit unit)
+	{
+		unit.IsEditing = flag;
+	}
+
+	private void UpdateUnit(Unit unit)
+	{
+		dbContext.Unit.Update(unit);
+		dbContext.SaveChanges();
+		toastService.ShowInfo($"已更新 {unit.Name}", "成功");
+
+		EnableEditing(false, unit);
+	}
+
+	private void checkDeleteUnit(Confirm confirm)
+	{
+		confirm.Show();
+	}
+
+	protected void ConfirmDelete_Click(bool deleteConfirmed, Unit unit)
+	{
+		if (deleteConfirmed)
+		{
+			dbContext.Unit.Remove(unit);
+			unitList.Remove(unit);
+			dbContext.SaveChanges();
+			toastService.ShowWarning($"已刪除 {unit.Name}", "成功");
+		}
+	}
+}

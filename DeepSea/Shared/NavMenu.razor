@@ -1,0 +1,96 @@
+﻿
+<div class="top-row pl-4 navbar navbar-dark">
+	<a class="navbar-brand" href="">DeepSea</a>
+	<button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
+		<span class="navbar-toggler-icon"></span>
+	</button>
+</div>
+
+<div class="@NavMenuCssClass" @onclick="ToggleNavMenu">
+	<nav class="flex-column">
+		<div class="nav-item px-3">
+			<NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+				<span class="oi oi-home" aria-hidden="true"></span> Home
+			</NavLink>
+		</div>
+		<div class="nav-item px-3">
+			<NavLink class="nav-link" style="cursor:pointer" @onclick="() => expandGameInfoNav = !expandGameInfoNav">
+				<span class="oi oi-list-rich" aria-hidden="true"></span> 遊戲資訊 <span style="transform:scale(0.6)" class="oi @(expandGameInfoNav ? "oi-chevron-bottom" : "oi-chevron-left")"></span>
+			</NavLink>
+			@if (expandGameInfoNav)
+			{
+				<NavLink class="nav-link expand-menu" href="gameInfo/map">
+					<span class="oi oi-map-marker" style="margin-left:8%" aria-hidden="true"></span> 地圖
+				</NavLink>
+				<NavLink class="nav-link expand-menu" href="gameInfo/units">
+					<span class="oi oi-people" style="margin-left:8%" aria-hidden="true"></span> 兵團
+				</NavLink>
+				<NavLink class="nav-link expand-menu" href="gameInfo/whiteboard">
+					<span class="oi oi-tablet" style="margin-left:8%" aria-hidden="true"></span> 戰術白板
+				</NavLink>
+			}
+		</div>
+		<AuthorizeView>
+			<div class="nav-item px-3">
+				<NavLink class="nav-link" href="personalInfo">
+					<span class="oi oi-person" aria-hidden="true"></span> 個人資訊
+				</NavLink>
+			</div>
+			<div class="nav-item px-3">
+				<NavLink class="nav-link" href="TWInfo">
+					<span class="oi oi-info" aria-hidden="true"></span> 領土戰資訊
+				</NavLink>
+			</div>
+		</AuthorizeView>
+		<AuthorizeView Roles="Admin,Su">
+			<div class="nav-item px-3">
+				<NavLink class="nav-link" style="cursor:pointer" @onclick="()=>expandHouseManagerNav = !expandHouseManagerNav">
+					<span class="oi oi-list-rich" aria-hidden="true"></span> 家族管理 <span style="transform:scale(0.6)" class="oi @(expandGameInfoNav ? "oi-chevron-bottom" : "oi-chevron-left")"></span>
+				</NavLink>
+				@if (expandHouseManagerNav)
+				{
+					<NavLink class="nav-link" style="margin-left:8%" href="admin/checkIn">
+						<span class="oi oi-task" aria-hidden="true"></span> 點名
+					</NavLink>
+					<NavLink class="nav-link" style="margin-left:8%" href="admin/record">
+						<span class="oi oi-book" aria-hidden="true"></span> 紀錄表
+					</NavLink>
+					<NavLink class="nav-link" style="margin-left:8%" href="admin/members">
+						<span class="oi oi-list" aria-hidden="true"></span> 成員名單
+					</NavLink>
+					<NavLink class="nav-link" style="margin-left:8%" href="admin/TWAsign">
+						<span class="oi oi-tag" aria-hidden="true"></span> 領土戰隊伍分配
+					</NavLink>
+				}
+			</div>
+		</AuthorizeView>
+		<AuthorizeView Roles="Su">
+			<div class="nav-item px-3">
+				<NavLink class="nav-link" style="cursor:pointer" @onclick="()=>expandDataManagerNav = !expandDataManagerNav">
+					<span class="oi oi-list-rich" aria-hidden="true"></span> 資料管理 <span style="transform:scale(0.6)" class="oi @(expandGameInfoNav ? "oi-chevron-bottom" : "oi-chevron-left")"></span>
+				</NavLink>
+				@if (expandDataManagerNav)
+				{
+					<NavLink class="nav-link" style="margin-left:8%" href="data/units">
+						<span class="oi oi-task" aria-hidden="true"></span> 兵團
+					</NavLink>
+				}
+			</div>
+		</AuthorizeView>
+	</nav>
+</div>
+
+@code {
+	private bool collapseNavMenu = true;
+	private bool expandHouseManagerNav = false;
+	private bool expandGameInfoNav = false;
+	private bool expandDataManagerNav = false;
+
+	private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+
+	private void ToggleNavMenu()
+	{
+		collapseNavMenu = !collapseNavMenu;
+	}
+
+}

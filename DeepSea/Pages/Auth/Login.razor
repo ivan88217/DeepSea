@@ -1,0 +1,118 @@
+﻿@page "/auth/login"
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authentication.Cookies
+@using Microsoft.Extensions.Options
+@inject SignInManager<IdentityUserModel> SignInManager
+@inject NavigationManager NavigationManager
+@inject IHostEnvironmentAuthenticationStateProvider HostAuthentication
+@attribute [AllowAnonymous]
+@inject IDataProtectionProvider dataProtectionProvider
+@inject IJSRuntime JSRuntime
+@inject IOptionsMonitor<CookieAuthenticationOptions> cookieAuthenticationOptionsMonitor
+
+<h3>登入</h3>
+<EditForm Model=loginModel OnValidSubmit=login>
+	<DataAnnotationsValidator />
+	<ValidationSummary />
+	<label>
+		電子信箱:
+		<InputText @bind-Value=loginModel.Email></InputText>
+	</label>
+	<br />
+	<label>
+		密碼:
+		<InputText @bind-Value=loginModel.Password></InputText>
+	</label>
+	<br />
+	@if (!string.IsNullOrEmpty(error))
+	{
+		<div class="alert-danger">
+			<p>@error</p>
+		</div>
+	}
+	<button type="button" disabled="@logging" @onclick=login class="btn btn-primary">@btnText</button>
+</EditForm>
+
+@code {
+
+
+	private LoginModel loginModel = new LoginModel();
+	private bool logging = false;
+	private string btnText = "登入";
+	private string error = "";
+
+	protected override async void OnInitialized()
+	{
+		AuthenticationState authState = await AuthenticationStateProvider!.GetAuthenticationStateAsync();
+		if (authState.User.Identity.IsAuthenticated)
+		{
+			var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
+			if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("returnUrl", out var returnUrl))
+			{
+				NavigationManager.NavigateTo(returnUrl);
+			}
+			else NavigationManager.NavigateTo("");
+		}
+	}
+    
+	private async void login()
+	{
+		if (logging) return;
+		logging = true;
+		btnText = "登入中";
+		StateHasChanged();
+		var user = await SignInManager.UserManager.FindByEmailAsync(loginModel.Email);
+		if (user == null)
+		{
+			error = "使用者不存在";
+			logging = false;
+			btnText = "登入";
+			StateHasChanged();
+			return;
+		}
+		if (await SignInManager.CanSignInAsync(user))
+		{
+			var result = await SignInManager.CheckPasswordSignInAsync(user, loginModel.Password, true);
+			if (result == SignInResult.Success)
+			{
+				var principal = await SignInManager.CreateUserPrincipalAsync(user);
+
+				var identity = new ClaimsIdentity(
+					principal.Claims,
+					CookieAuthenticationDefaults.AuthenticationScheme
+				);
+				principal = new ClaimsPrincipal(identity);
+				SignInManager.Context.User = principal;
+				HostAuthentication.SetAuthenticationState(Task.FromResult(new AuthenticationState(principal)));
+				var ticket = new AuthenticationTicket(principal, null, CookieAuthenticationDefaults.AuthenticationScheme);
+				
+				var _cookieAuthenticationOptions = cookieAuthenticationOptionsMonitor.Get(CookieAuthenticationDefaults.AuthenticationScheme);
+				var value = _cookieAuthenticationOptions.TicketDataFormat.Protect(ticket);
+				await JSRuntime.InvokeVoidAsync("blazorExtensions.WriteCookie", "Auth", value, _cookieAuthenticationOptions.ExpireTimeSpan.TotalDays);
+   
+				
+				var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
+				if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("returnUrl", out var returnUrl))
+				{
+					NavigationManager.NavigateTo(returnUrl);
+				}
+				else NavigationManager.NavigateTo("");
+			}
+			else
+			{
+				error = "登入失敗. 請檢查你的密碼.";
+				logging = false;
+				btnText = "登入";
+				StateHasChanged();
+			}
+		}
+		else
+		{
+			error = "帳號已被停用";
+			logging = false;
+			btnText = "登入";
+			StateHasChanged();
+		}
+	}
+}

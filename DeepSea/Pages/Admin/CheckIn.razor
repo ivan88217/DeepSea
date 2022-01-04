@@ -1,0 +1,109 @@
+﻿@page "/admin/checkIn"
+<h3>點名</h3>
+
+<label>
+	@(isChecked ? "已點名" : "未點名")
+	<input type="checkbox" checked="@isChecked" data-toggle="toggle" data-onstyle="outline-primary" data-offstyle="outline-secondary" @onclick=checkChange>
+</label>
+<button @onclick="save" class="btn btn-primary">保存</button>
+<button @onclick="reset" class="btn btn-danger">重置</button>
+<br />
+<Table TableItem="HouseMember" Items="isChecked ? checkedHouseMemberList : unCheckedHouseMemberList" PageSize="10" ColumnReorder="true">
+	<Column TableItem="HouseMember" Title="遊戲名稱" Field="@(x => x.GameName)" Sortable="true" Filterable="true" Width="20%">
+		<Template>
+			<div style="padding:10px">@context.GameName</div>
+		</Template>
+	</Column>
+	<Column TableItem="HouseMember" Title="操作" Width="10%">
+		<Template>
+			@if (isChecked)
+			{
+				<button type="button" class="btn btn-link" @onclick="() => unCheck(context)">
+					<i class="oi oi-x" />
+				</button>
+			}
+			else{
+				<button type="button" class="btn btn-link" @onclick="() => check(context)">
+					<i class="oi oi-check" />
+				</button>
+			}
+		</Template>
+	</Column>
+	<Pager ShowPageNumber="true" ShowTotalCount="true" />
+</Table>
+
+@code {
+
+	private List<HouseMember> unCheckedHouseMemberList = new List<HouseMember>();
+	private List<HouseMember> checkedHouseMemberList = new List<HouseMember>();
+	private bool isChecked = false;
+	private IdentityUserModel user;
+
+	protected override async Task OnInitializedAsync()
+	{
+		AuthenticationState authState = await AuthenticationStateProvider!.GetAuthenticationStateAsync();
+		var userName = authState.User.Identity!.Name;
+		user = dbContext.User.Single(u => u.UserName == userName);
+		var houseMember = dbContext.HouseMember.Where(x => x.Detail.HouseId == user.HouseMember.Detail.HouseId).ToList();
+		unCheckedHouseMemberList = houseMember.Where(h => h.AttendenceTempRecord == null).ToList();
+		checkedHouseMemberList = houseMember.Where(h => h.AttendenceTempRecord != null).ToList();
+	}
+	
+	protected void check(HouseMember member)
+	{
+		dbContext.AttendanceTempRecord.Add(new AttendanceTempRecord()
+		{
+			HouseMemberId = member.Id,
+			AllianceId = member.Detail.AllianceId
+		});
+		dbContext.SaveChanges();
+		checkedHouseMemberList.Add(member);
+		unCheckedHouseMemberList.Remove(member);
+	}
+
+	protected void unCheck(HouseMember member)
+	{
+		var atr = dbContext.AttendanceTempRecord.Single(x => x.HouseMemberId == member.Id);
+		dbContext.AttendanceTempRecord.Remove(atr);
+		dbContext.SaveChanges();
+		unCheckedHouseMemberList.Add(member);
+		checkedHouseMemberList.Remove(member);
+	}
+
+	protected void checkChange()
+	{
+		isChecked = !isChecked;
+	}
+
+	protected void save()
+	{
+		var checkedMember = dbContext.AttendanceTempRecord
+			.Where(x => x.AllianceId == user.HouseMember.Detail.AllianceId).ToList();
+		var today = DateTime.Now.ToShortDateString();
+		var ar = new AttendanceRecord()
+		{
+			RecordTime = today,
+			AllianceId = user.HouseMember.Detail.AllianceId
+		};
+		var res = dbContext.AttendanceRecord.Add(ar);
+		dbContext.SaveChanges();
+		var ard = checkedMember.Select<AttendanceTempRecord, AttendanceRecordDetail>(cm => new AttendanceRecordDetail()
+		{
+			AttendenceRecordId = ar.Id,
+			HouseMemberId = cm.HouseMemberId
+		});
+		dbContext.AttendanceRecordDetail.AddRange(ard);
+		dbContext.SaveChanges();
+		reset();
+		toastService.ShowSuccess($"{today} 紀錄完畢", "完成");
+	}
+
+	protected void reset()
+	{
+		var tempRecord = dbContext.AttendanceTempRecord.ToList();
+		dbContext.AttendanceTempRecord.RemoveRange(tempRecord);
+		dbContext.SaveChanges();
+		unCheckedHouseMemberList = dbContext.HouseMember.ToList();
+		checkedHouseMemberList.Clear();
+	}
+}

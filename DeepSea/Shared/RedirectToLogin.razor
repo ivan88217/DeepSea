@@ -1,0 +1,27 @@
+﻿@inject NavigationManager Navigation
+@using Microsoft.AspNetCore.WebUtilities
+
+<h3>很抱歉你的權限不足</h3>
+@code {
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; }
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authenticationState = await AuthenticationStateTask;
+        if (authenticationState?.User?.Identity is null || !authenticationState.User.Identity.IsAuthenticated)
+        {
+            var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
+            if (string.IsNullOrWhiteSpace(returnUrl))
+                Navigation.NavigateTo("auth/login", true);
+            else
+            {
+                var queryStr = new Dictionary<string, string>() { { "returnUrl", returnUrl } };
+                Navigation.NavigateTo(QueryHelpers.AddQueryString("auth/login", queryStr!));
+            }
+        }
+    }
+
+}

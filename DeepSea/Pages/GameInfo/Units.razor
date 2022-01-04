@@ -1,0 +1,40 @@
+﻿@page "/gameInfo/units"
+@inject ApplicationDbContext dbContext
+<h3>兵團資訊</h3>
+<table class="table">
+	<thead>
+		<tr>
+			<th scope="col">名稱</th>
+			<th scope="col">類別</th>
+			<th scope="col">統御</th>
+			<th scope="col">最高等級</th>
+		</tr>
+	</thead>
+	<tbody>
+		@if (units.Count > 0)
+		{
+			foreach (var unit in units)
+			{
+				<tr>
+					<th scope="row">@unit.Name</th>
+					<td>@unit.Type</td>
+					<td>@unit.Dominate</td>
+					<td>@unit.MaxLevel</td>
+				</tr>
+			}
+		}
+		else
+		{
+			<tr>無資料</tr>
+		}
+	</tbody>
+</table>
+@code {
+	private List<Unit> units = new List<Unit>();
+	
+	protected override Task OnInitializedAsync()
+	{
+		units = dbContext.Unit.Select(u => u).ToList();
+		return base.OnInitializedAsync();
+	}
+}

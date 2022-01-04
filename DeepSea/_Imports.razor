@@ -1,0 +1,21 @@
+﻿@using System.Net.Http
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Web.Virtualization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.DataProtection
+@using Microsoft.AspNetCore.WebUtilities
+@using Microsoft.JSInterop
+@using DeepSea
+@using DeepSea.Shared
+@using DeepSea.Models
+@using DeepSea.Data
+@using Blazored.Toast
+@using Blazored.Toast.Services
+@using BlazorTable
+@inject ApplicationDbContext dbContext
+@inject IToastService toastService
+@inject AuthenticationStateProvider AuthenticationStateProvider
